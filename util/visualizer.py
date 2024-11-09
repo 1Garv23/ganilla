@@ -5,7 +5,7 @@ import ntpath
 import time
 from . import util
 from . import html
-from scipy.misc import imresize
+from PIL import Image  # Use PIL for image resizing
 
 if sys.version_info[0] == 2:
     VisdomExceptionBase = Exception
@@ -28,22 +28,25 @@ def save_images(webpage, visuals, image_path, aspect_ratio=1.0, width=256, f_nam
 
     for label, im_data in visuals.items():
         im = util.tensor2im(im_data)
-        # if label == "real_A":
-        #     continue
-
-        # image_name = '%s.png' % (name)
-        # image_name = f_name # cityscape icin eklendi
         if citysc:
-            im = imresize(im, (1024, 2048))  # cityscape icin eklendi
-            image_name = os.path.splitext(f_name)[0] + ".png" # cityscape icin eklendi
+            im = Image.fromarray(im)  # Convert numpy array to PIL Image
+            im = im.resize((2048, 1024), Image.BICUBIC)  # Resize with bicubic interpolation
+            im = np.array(im)  # Convert back to numpy array
+            image_name = os.path.splitext(f_name)[0] + ".png"  # cityscape icin eklendi
         else:
             image_name = '%s_%s.png' % (name, label)
+        
         save_path = os.path.join(image_dir, image_name)
         h, w, _ = im.shape
         if aspect_ratio > 1.0:
-            im = imresize(im, (h, int(w * aspect_ratio)), interp='bicubic')
+            im = Image.fromarray(im)
+            im = im.resize((int(w * aspect_ratio), h), Image.BICUBIC)
+            im = np.array(im)
         if aspect_ratio < 1.0:
-            im = imresize(im, (int(h / aspect_ratio), w), interp='bicubic')
+            im = Image.fromarray(im)
+            im = im.resize((w, int(h / aspect_ratio)), Image.BICUBIC)
+            im = np.array(im)
+        
         util.save_image(im, save_path)
 
         ims.append(image_name)
@@ -52,8 +55,9 @@ def save_images(webpage, visuals, image_path, aspect_ratio=1.0, width=256, f_nam
     webpage.add_images(ims, txts, links, width=width)
 
 
+
 class Visualizer():
-    def __init__(self, opt):
+    def _init_(self, opt):
         self.display_id = opt.display_id
         self.use_html = opt.isTrain and not opt.no_html
         self.win_size = opt.display_winsize
@@ -179,4 +183,4 @@ class Visualizer():
 
         print(message)
         with open(self.log_name, "a") as log_file:
-            log_file.write('%s\n' % message)
+            log_file.write('%s\n' % message)
